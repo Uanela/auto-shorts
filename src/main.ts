@@ -70,9 +70,30 @@ const shorts: { from: number; to: number; title: string }[] = [
   },
 ];
 
-const videoFile = "2026-07-26_18-36-14.mp4";
+const videoFile = "pastor-sergio-cut.mp4";
 const videoPath = path.join(Deno.cwd(), "videos", videoFile);
 const shortsPath = path.join(Deno.cwd(), "shorts");
+
+// --- Layout tuning knobs ---------------------------------------------------
+const TOP_BAR_HEIGHT = 280;
+const BOTTOM_BAR_HEIGHT = TOP_BAR_HEIGHT;
+const BAR_COLOR = "0x041a51";
+const TITLE_BOTTOM_PADDING = 32;
+const TEXT_WIDTH_FACTOR = 0.5;
+const TEXT_SIDE_MARGIN = 16;
+const OUTPUT_WIDTH = 1080;
+const OUTPUT_HEIGHT = 1920;
+
+// Video viewport: width fixed, height is whatever's left after the bars.
+const CROP_WIDTH = OUTPUT_WIDTH;
+const CROP_HEIGHT = OUTPUT_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT;
+// ---------------------------------------------------------------------------
+
+if (CROP_HEIGHT <= 0) {
+  throw new Error(
+    "TOP_BAR_HEIGHT + BOTTOM_BAR_HEIGHT must be less than OUTPUT_HEIGHT",
+  );
+}
 
 function toKebabCase(str: string): string {
   return str
@@ -84,12 +105,11 @@ function toKebabCase(str: string): string {
 async function generateShorts() {
   try {
     await ensureDir(shortsPath);
-
     await emptyDir(shortsPath);
+
     for (const short of shorts) {
       const kebabTitle = toKebabCase(short.title);
       const shortFolder = path.join(shortsPath, kebabTitle);
-
       await ensureDir(shortFolder);
 
       const outputPath = path.join(shortFolder, `${kebabTitle}.mp4`);
@@ -101,24 +121,44 @@ async function generateShorts() {
       const video = await new ffmpeg(`${videoPath}`);
       const metadata = await video.metadata;
 
-      const height = metadata.video.resolution.h;
-      const width = Math.round((height * 9) / 16);
-
       const videoWidth = metadata.video.resolution.w;
       const videoHeight = metadata.video.resolution.h;
-      const cropWidth = Math.round((videoHeight * 9) / 16);
-      const cropHeight = videoHeight;
-      const xOffset = Math.round((videoWidth - cropWidth) / 2);
 
-      const cropFilter = `crop=${cropWidth}:${cropHeight}:${xOffset}:0`;
+      // Crop a centered region from the real source, matching whatever
+      // aspect ratio CROP_WIDTH:CROP_HEIGHT currently is, without ever
+      // asking for more pixels than the source has.
+      const targetRatio = CROP_WIDTH / CROP_HEIGHT;
 
-      // const cropFilter = `crop=${width}:${height}:in_w-${width}/2:0`;
-      // const cropFilter = `crop=${height}:${width}:${Math.round((metadata.video.resolution.w - height) / 2)}:0`;
-      // const textFilter = `drawtext=text=${short.title.replace(/\s/g, "\\ ")}:fontcolor=yellow:fontsize=60:x=(w-text_w)/2:y=${Math.round(height * 0.3)}:enable=between\\t\\,0\\,10\\`;
-      const wrapText = (text: string, maxChars: number = 20): string[] => {
+      let sourceCropWidth: number;
+      let sourceCropHeight: number;
+
+      if (videoWidth / videoHeight > targetRatio) {
+        sourceCropHeight = videoHeight;
+        sourceCropWidth = Math.round(sourceCropHeight * targetRatio);
+      } else {
+        sourceCropWidth = videoWidth;
+        sourceCropHeight = Math.round(sourceCropWidth / targetRatio);
+      }
+
+      sourceCropHeight = sourceCropHeight - 110
+
+      const xOffset = Math.round((videoWidth - sourceCropWidth) / 2);
+      const yOffset = Math.round((videoHeight - sourceCropHeight) / 2);
+      const cropFilter =
+        `crop=${sourceCropWidth}:${sourceCropHeight}:${xOffset}:${yOffset}`;
+
+      // Scale to fill the viewport exactly. The crop above already matches
+      // this ratio, so this scale is uniform and never distorts.
+      const scaleFilter = `scale=${CROP_WIDTH}:${CROP_HEIGHT}`;
+
+      // Pad onto the full output canvas, adding bars top and bottom.
+      const padFilter =
+        `pad=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:0:${TOP_BAR_HEIGHT}:color=${BAR_COLOR}`;
+
+      const wrapText = (text: string, maxChars: number): string[] => {
         const words = text.split(" ");
-        let lines: string[] = [];
-        let currentLine: string = "";
+        const lines: string[] = [];
+        let currentLine = "";
 
         for (const word of words) {
           const testLine = currentLine + word + " ";
@@ -135,23 +175,28 @@ async function generateShorts() {
         return lines;
       };
 
-      const lines = wrapText(short.title);
-      const maxLineLength = Math.max(...lines.map((l) => l.length));
-      const maxLine = (() => {
-        let line = "";
-        for (let i = 0; i < maxLineLength; i++) {
-          line += "O";
-        }
-
-        return line;
-      })();
-      const startY = Math.round(cropHeight * 0.7);
-      const fontSize = 24;
+      const fontSize = 56;
       const lineHeight = fontSize + fontSize / 6;
 
+      // Derive max chars per line from the actual canvas width, so lines
+      // use the full available width instead of an arbitrary fixed count.
+      const availableTextWidth = OUTPUT_WIDTH - TEXT_SIDE_MARGIN * 2;
+      const maxChars = Math.floor(
+        availableTextWidth / (fontSize * TEXT_WIDTH_FACTOR),
+      );
+
+      const lines = wrapText(short.title, maxChars);
+      const maxLineLength = Math.max(...lines.map((l) => l.length));
+      const maxLine = "O".repeat(maxLineLength);
+
+      // Title sits inside the top bar, bottom-aligned just above the video,
+      // stacked upward, horizontally centered.
+      const totalTextHeight = lines.length * lineHeight;
+      const startY = TOP_BAR_HEIGHT - totalTextHeight - TITLE_BOTTOM_PADDING;
+
       function getBoxX(length: number) {
-        const x = length * ((fontSize * 62.5) / 100);
-        return Math.round((cropWidth - x) / 2);
+        const x = length * fontSize * TEXT_WIDTH_FACTOR;
+        return Math.round((OUTPUT_WIDTH - x) / 2);
       }
 
       const boxFontSize = fontSize + 2;
@@ -160,28 +205,21 @@ async function generateShorts() {
       const textFilters = lines
         .map(
           (line, index) =>
-            `drawtext=text='${maxLine}':fontcolor=0x041a51:fontsize=${boxFontSize}:fontfile='/System/Library/Fonts/Supplemental/Tahoma Bold.ttf':x=${
-              getBoxX(maxLine?.length!)
+            `drawtext=text='${maxLine}':fontcolor=${BAR_COLOR}:fontsize=${boxFontSize}:fontfile='/System/Library/Fonts/Supplemental/Tahoma Bold.ttf':x=${
+              getBoxX(maxLine.length)
             }:y=${
               startY + index * boxLineHeight + 8
-            }:box=1:boxcolor=0x041a51,` +
+            }:box=1:boxcolor=${BAR_COLOR},` +
             `drawtext=text='${
               line.replace(/'/g, "\\'")
             }':fontcolor=white:fontsize=${fontSize}:fontfile='/System/Library/Fonts/Supplemental/Tahoma Bold.ttf':x=${
               getBoxX(line.length)
-            }:y=${startY + index * lineHeight + 8}:box=1:boxcolor=0x041a51`,
+            }:y=${startY + index * lineHeight + 8}:box=1:boxcolor=${BAR_COLOR}`,
         )
         .join(",");
 
-      // const textFilters = lines
-      //   .map(
-      //     (line, index) =>
-      //       `drawtext=text='${line.replace(/'/g, "\\'")}':fontcolor=white:fontsize=20:x=${boxX + 8}:y=${startY + index * lineHeight + 8}:box=1:boxcolor=0x00008B@0.9:boxborderw=8:boxw=${boxWidth}:boxh=${lineHeight - 4}`
-      //   )
-      //   .join(",");
-
-      const filterComplex = `${cropFilter},${textFilters}`;
-      // const filterComplex = `${cropFilter}`;
+      const filterComplex =
+        `${cropFilter},${scaleFilter},${padFilter},${textFilters}`;
 
       video.addCommand("-ss", short.from.toString());
       video.addCommand("-t", duration.toString());
