@@ -3,6 +3,12 @@ import { emptyDir, ensureDir } from "https://deno.land/std/fs/mod.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 
 const shorts: { from: number; to: number; title: string }[] = [
+  {
+    from: 0,
+    to: 1,
+    title:
+      "Entenda porque em Génesis diz que a voz do senhor passeava sobre o jardim",
+  },
   { from: 2450, to: 2570, title: "Fé vem de uma promessa" },
   {
     from: 2490,
@@ -70,9 +76,13 @@ const shorts: { from: number; to: number; title: string }[] = [
   },
 ];
 
-const videoFile = "pastor-sergio-cut.mp4";
+const videoFile = "2026-07-26_18-36-14-pastor-sergio.mp4";
 const videoPath = path.join(Deno.cwd(), "videos", videoFile);
-const shortsPath = path.join(Deno.cwd(), "shorts");
+const shortsPath = path.join(
+  Deno.cwd(),
+  "shorts",
+  toKebabCase(videoFile.replace(".mp4", "")),
+);
 
 // --- Layout tuning knobs ---------------------------------------------------
 const TOP_BAR_HEIGHT = 280;
@@ -107,12 +117,14 @@ async function generateShorts() {
     await ensureDir(shortsPath);
     await emptyDir(shortsPath);
 
-    for (const short of shorts) {
+    for (const i in shorts) {
+      const short = shorts[i];
       const kebabTitle = toKebabCase(short.title);
-      const shortFolder = path.join(shortsPath, kebabTitle);
-      await ensureDir(shortFolder);
 
-      const outputPath = path.join(shortFolder, `${kebabTitle}.mp4`);
+      const outputPath = path.join(
+        shortsPath,
+        `${Number(i) + 1}-${kebabTitle}.mp4`,
+      );
       const duration = short.to - short.from;
 
       console.log(`Processing: ${short.title}`);
@@ -140,7 +152,7 @@ async function generateShorts() {
         sourceCropHeight = Math.round(sourceCropWidth / targetRatio);
       }
 
-      sourceCropHeight = sourceCropHeight - 110
+      sourceCropHeight = sourceCropHeight - 110;
 
       const xOffset = Math.round((videoWidth - sourceCropWidth) / 2);
       const yOffset = Math.round((videoHeight - sourceCropHeight) / 2);
@@ -175,8 +187,8 @@ async function generateShorts() {
         return lines;
       };
 
-      const fontSize = 56;
-      const lineHeight = fontSize + fontSize / 6;
+      const fontSize = 52;
+      const lineHeight = fontSize + fontSize / 4;
 
       // Derive max chars per line from the actual canvas width, so lines
       // use the full available width instead of an arbitrary fixed count.
