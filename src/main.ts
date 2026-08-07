@@ -1,67 +1,76 @@
 import ffmpeg from "ffmpeg";
-import { ensureDir } from "https://deno.land/std/fs/mod.ts";
+import { emptyDir, ensureDir } from "https://deno.land/std/fs/mod.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 
 const shorts: { from: number; to: number; title: string }[] = [
-  { from: 55, to: 125, title: "Perceba Que As Bênçãos Ja Estão Em Ti" },
-  { from: 330, to: 450, title: "O Que É Ser Vigiar Segundo A Biblia" },
+  { from: 2450, to: 2570, title: "Fé vem de uma promessa" },
   {
-    from: 630,
-    to: 710,
-    title: "O Que Acontece Quando Você Não Tem A Porta Da Guarda Restaurada",
+    from: 2490,
+    to: 2595,
+    title: "A fidelidade te leva a concretização do seu milagre",
   },
   {
-    from: 775,
-    to: 890,
-    title: "Porquê Muitos Cristãos Estão Vulneráveis Hoje Em Dia",
+    from: 2865,
+    to: 2905,
+    title: "Entenda o que precisas para Concretizar o seu propósito",
   },
   {
-    from: 980,
-    to: 1050,
-    title: "Entenda Como Você Deve Rejeitar Os Pensamentos Errados Do Inimigo",
-  },
-  {
-    from: 1050,
-    to: 1125,
-    title: "Porque Muitos Desistem Da Igreja E Não Voltam",
-  },
-  { from: 1270, to: 1350, title: "Entenda O Que É Coração Segundo A Biblia" },
-  {
-    from: 1470,
-    to: 1590,
-    title: "O Que Acontece Quando Você Enfraquece No Espírito",
-  },
-  {
-    from: 1750,
-    to: 1867,
-    title: "O Que Fazer Para Guardar Seu Coração Segundo Salmos 34 13",
-  },
-  {
-    from: 2230,
-    to: 2275,
-    title: "Porquê O Diabo Coloca Imagens Pervetidas Na Sua Mente",
-  },
-  { from: 2410, to: 2520, title: "Entenda Como Quebrar Tentações Do Inimigo" },
-  { from: 2570, to: 2690, title: "Como A Bíblia Interpreta A Palavra Guarda" },
-  {
-    from: 2870,
-    to: 2980,
-    title: "Entenda Porquê Os Seus Pastores São Seus Guardas",
-  },
-  {
-    from: 3390,
-    to: 3510,
+    from: 2990,
+    to: 3040,
     title:
-      "Como Muitos Pais Deram Liberdades Aos Seus Filhos Que Não Deviam Dar",
+      "Entenda porque em Génesis diz que a voz do senhor passeava sobre o jardim",
   },
   {
-    from: 3495,
-    to: 3600,
-    title: "Porquê Os Pais Não Devem Comprar Celulares Para Suas Crianças",
+    from: 3155,
+    to: 3260,
+    title: "Veja o que aconteceu quando Deus liberou a guerra contra Jó",
+  },
+  {
+    from: 3240,
+    to: 3290,
+    title: "O que aconteceu com Jó ao fim da Guerra com o Diabo",
+  },
+  { from: 3305, to: 3376, title: "Veja Porquê Você Necessita Ser fiel a Deus" },
+  {
+    from: 3370,
+    to: 3440,
+    title: "Aprenda a ter fé através do senhor Jesus Cristo",
+  },
+  {
+    from: 3710,
+    to: 3810,
+    title: "Entenda porque você deve agarrar-se a sua fé em Jesus Cristo",
+  },
+  { from: 3780, to: 3830, title: "Entenda Porque a Bíblia é Eterna" },
+  {
+    from: 3920,
+    to: 3990,
+    title: "Todos nos fomos enviados por Deus para um propósito",
+  },
+  { from: 4075, to: 4125, title: "Porquê parece que Deus te abandonou" },
+  {
+    from: 4180,
+    to: 4230,
+    title: "Porquê Jesus dormiu em meio a uma tempestade",
+  },
+  {
+    from: 4375,
+    to: 4440,
+    title: "Porquê um homem rico subiu a figueira brava",
+  },
+  {
+    from: 4555,
+    to: 4650,
+    title: "A uma Guerra entre você e seus objectivos. aprenda a clamar",
+  },
+  {
+    from: 4855,
+    to: 4905,
+    title: "Veja Porquê Deus vai te levar para um Deserto",
   },
 ];
 
-const videoFile = "2025-12-28-20-13-05.mp4";
+const videoFile = "2026-07-26_18-36-14.mp4";
 const videoPath = path.join(Deno.cwd(), "videos", videoFile);
 const shortsPath = path.join(Deno.cwd(), "shorts");
 
@@ -76,6 +85,7 @@ async function generateShorts() {
   try {
     await ensureDir(shortsPath);
 
+    await emptyDir(shortsPath);
     for (const short of shorts) {
       const kebabTitle = toKebabCase(short.title);
       const shortFolder = path.join(shortsPath, kebabTitle);
@@ -88,7 +98,7 @@ async function generateShorts() {
       console.log(`Processing: ${short.title}`);
       console.log(`From ${short.from}s to ${short.to}s`);
 
-      const video = await new ffmpeg(videoPath);
+      const video = await new ffmpeg(`${videoPath}`);
       const metadata = await video.metadata;
 
       const height = metadata.video.resolution.h;
@@ -127,17 +137,48 @@ async function generateShorts() {
 
       const lines = wrapText(short.title);
       const maxLineLength = Math.max(...lines.map((l) => l.length));
-      const boxWidth = maxLineLength * 12;
-      const lineHeight = 30;
+      const maxLine = (() => {
+        let line = "";
+        for (let i = 0; i < maxLineLength; i++) {
+          line += "O";
+        }
+
+        return line;
+      })();
       const startY = Math.round(cropHeight * 0.7);
-      const boxX = Math.round((cropWidth - boxWidth) / 2);
+      const fontSize = 24;
+      const lineHeight = fontSize + fontSize / 6;
+
+      function getBoxX(length: number) {
+        const x = length * ((fontSize * 62.5) / 100);
+        return Math.round((cropWidth - x) / 2);
+      }
+
+      const boxFontSize = fontSize + 2;
+      const boxLineHeight = fontSize + fontSize / 6;
 
       const textFilters = lines
         .map(
           (line, index) =>
-            `drawtext=text='${line.replace(/'/g, "\\'")}':fontcolor=white:fontsize=20:x=${boxX + 8}:y=${startY + index * lineHeight + 8}:box=1:boxcolor=0x00008B@0.9:boxborderw=8:boxw=${boxWidth}:boxh=${lineHeight - 4}`
+            `drawtext=text='${maxLine}':fontcolor=0x041a51:fontsize=${boxFontSize}:fontfile='/System/Library/Fonts/Supplemental/Tahoma Bold.ttf':x=${
+              getBoxX(maxLine?.length!)
+            }:y=${
+              startY + index * boxLineHeight + 8
+            }:box=1:boxcolor=0x041a51,` +
+            `drawtext=text='${
+              line.replace(/'/g, "\\'")
+            }':fontcolor=white:fontsize=${fontSize}:fontfile='/System/Library/Fonts/Supplemental/Tahoma Bold.ttf':x=${
+              getBoxX(line.length)
+            }:y=${startY + index * lineHeight + 8}:box=1:boxcolor=0x041a51`,
         )
         .join(",");
+
+      // const textFilters = lines
+      //   .map(
+      //     (line, index) =>
+      //       `drawtext=text='${line.replace(/'/g, "\\'")}':fontcolor=white:fontsize=20:x=${boxX + 8}:y=${startY + index * lineHeight + 8}:box=1:boxcolor=0x00008B@0.9:boxborderw=8:boxw=${boxWidth}:boxh=${lineHeight - 4}`
+      //   )
+      //   .join(",");
 
       const filterComplex = `${cropFilter},${textFilters}`;
       // const filterComplex = `${cropFilter}`;
