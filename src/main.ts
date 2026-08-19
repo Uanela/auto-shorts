@@ -13,7 +13,7 @@ const shortsPath = path.join(
 
 // --- Layout tuning knobs ---------------------------------------------------
 const OUTPUT_WIDTH = 1080;
-const OUTPUT_HEIGHT = 1920;
+const OUTPUT_HEIGHT = 1440;
 // ---------------------------------------------------------------------------
 
 function toKebabCase(str: string): string {
