@@ -41,7 +41,9 @@ async function generateShorts() {
       console.log(`Processing: ${short.title}`);
       console.log(`From ${short.from}s to ${short.to}s`);
 
-      const video = await new ffmpeg(`${videoPath}`);
+      const video = await new ffmpeg(
+        videoPath.includes(' ') ? `"${videoPath}"` : videoPath,
+      );
       const metadata = await video.metadata;
 
       const videoWidth = metadata.video.resolution.w;
@@ -60,6 +62,8 @@ async function generateShorts() {
         sourceCropHeight = Math.round(sourceCropWidth / targetRatio);
       }
 
+      sourceCropHeight = sourceCropHeight - 110;
+
       const xOffset = Math.round((videoWidth - sourceCropWidth) / 2);
       const yOffset = Math.round((videoHeight - sourceCropHeight) / 2);
       const cropFilter = `crop=${sourceCropWidth}:${sourceCropHeight}:${xOffset}:${yOffset}`;
@@ -76,7 +80,9 @@ async function generateShorts() {
       video.addCommand('-preset', 'slow');
       video.addCommand('-c:a', 'aac');
       video.addCommand('-b:a', '128k');
-      await video.save(outputPath);
+      await video.save(
+        outputPath.includes(' ') ? `"${outputPath}"` : outputPath,
+      );
 
       console.log(`✓ Created: ${outputPath}`);
     }
