@@ -1,8 +1,8 @@
 // Como Operar Correctamente Nas Coisas de Deus - Parte 3
 export const shorts: { from: number; to: number; title: string }[] = [
   {
-    from: 3525, // 58:45
-    to: 3630, // 1:00:30
+    from: 0, // 58:45
+    to: 1, // 1:00:30
     title: 'Porquê pedimos coisas a Deus mas não recebemos',
   },
   {
